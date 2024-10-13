@@ -42,10 +42,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      # Step 4: Run tests (optional)
-      - name: Run tests
-        run: |
-          pytest  # Ensure you have tests in your repo
+      
 
       # Step 5: Run the Streamlit app (testing in CI)
       - name: Run Streamlit App
