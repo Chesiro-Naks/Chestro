@@ -12,7 +12,7 @@ on:
   workflow_dispatch:  # Manual trigger option
 
 concurrency:
-  group: "streamlit-pages"
+  group: "streamlit-app"
   cancel-in-progress: false
 
 env:
@@ -41,33 +41,13 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-
       
+      # Step 4: (Optional) Run tests
+      - name: Run tests
+        run: |
+          pytest  # Ensure you have tests set up in your repo
 
       # Step 5: Run the Streamlit app (testing in CI)
       - name: Run Streamlit App
         run: |
           streamlit run app.py  # Replace with your actual Streamlit entry point
-
-  deploy:
-    needs: build-and-deploy  # Wait for build-and-deploy to finish
-    runs-on: ubuntu-latest
-
-    permissions:
-      pages: write
-      id-token: write
-
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-
-    steps:
-      - name: Setup Pages
-        uses: actions/configure-pages@v5
-
-      - name: Deploy to GitHub Pages 🚀
-        if: github.event_name == 'push'  # Deploy only on push
-        id: deployment
-        uses: actions/deploy-pages@v4.0.5
-        with:
-          artifact_name: web-build-artifact
