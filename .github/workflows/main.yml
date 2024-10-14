@@ -3,9 +3,11 @@ name: CI/CD Pipeline for Streamlit App
 on:
   push:
     branches: 
+      - master
       - main
   pull_request:
     branches: 
+      - master
       - main
   workflow_dispatch:
 
@@ -43,7 +45,12 @@ jobs:
           sleep 10  # Wait for the app to start
           curl -f http://localhost:8501  # Check if the app is running
 
-      
+      - name: Upload Artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          name: streamlit-app-artifact  # Name of the artifact
+          path: ./  # Adjust the path to where your Streamlit app files are located
+
   deploy:
     needs: build  # Wait for the build job to finish before deploying
 
