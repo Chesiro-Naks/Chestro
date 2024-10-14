@@ -39,9 +39,10 @@ jobs:
           pip install -r requirements.txt
           pip install ploomber-cloud  # Install Ploomber Cloud
 
+      - name: List project files
+        run: ls -la  # List all files in the current directory
+
       - name: Configure Ploomber Cloud
         run: |
-         ploomber-cloud key ${{ secrets.PLOOMBER_CLOUD_KEY }}  # Use the stored secret API key
-         ploomber-cloud deploy  # Deploy the app to Ploomber Cloud
-
-
+          ploomber-cloud key ${{ secrets.PLOOMBER_CLOUD_KEY }}  # Use the stored secret API key
+          ploomber-cloud deploy  # Deploy the app to Ploomber Cloud
