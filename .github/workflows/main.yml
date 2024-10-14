@@ -4,11 +4,11 @@ on:
   push:
     branches:
       - main
-      - master
+     
   pull_request:
     branches:
       - main
-      - master
+  
   workflow_dispatch:  # Manual trigger option
 
 concurrency:
@@ -19,7 +19,7 @@ env:
   BUILD_NUMBER: 1
   BUILD_VERSION: 1.0.0
   PYTHON_VERSION: 3.12.2
-  STREAMLIT_ACCOUNT: your_streamlit_account_name  # Replace with your Streamlit Cloud account name
+  STREAMLIT_ACCOUNT: chesiro-naks  # Replace with your Streamlit Cloud account name
   STREAMLIT_APP_NAME: dirretta  # Replace with your Streamlit app name
 
 jobs:
