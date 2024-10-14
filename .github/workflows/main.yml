@@ -41,7 +41,7 @@ jobs:
       
       - name: Build the Streamlit app
         run: |
-          nohup streamlit run app.py &  # Start the Streamlit app
+          streamlit run app.py &  # Start the Streamlit app
           sleep 10  # Wait for the app to start
           curl -f http://localhost:8501  # Check if the app is running
 
