@@ -26,7 +26,9 @@ jobs:
         env:
           PLOOMBER_CLOUD_KEY: ${{ secrets.PLOOMBER_CLOUD_KEY }}
         run: |
-          ploomber-cloud deploy --watch-incremental
+          streamlit run app.py 
+         
+          
         # The --watch-incremental flag will print deployment status and deployment
         # log updates to the GitHub logs.
         # To learn more, visit: https://docs.cloud.ploomber.io/en/latest/user-guide/github.html 
