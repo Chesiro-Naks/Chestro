@@ -6,5 +6,9 @@
         "cpu": 0.5,
         "ram": 1,
         "gpu": 0
+    },
+    "project": {
+        "name": "Chestro",  // Change to your actual project name
+        "entry_point": "app.py"
     }
 }
