@@ -42,4 +42,5 @@ jobs:
       - name: Configure Ploomber Cloud
         run: |
           ploomber-cloud key ${{ secrets.PLOOMBER_CLOUD_KEY }}  # Use the stored secret API key
-          ploomber-cloud deploy  # Deploy the app to Ploomber Cloud
+          ploomber-cloud deploy --entry-point app.py  # Specify app.py as the entry point
+
