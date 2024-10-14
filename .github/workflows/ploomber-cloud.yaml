@@ -1,37 +1,43 @@
-name: Streamlit App Build and Deployment
+name: CI/CD Pipeline for Streamlit App on Ploomber Cloud
 
 on:
   push:
     branches:
+      - master
       - main
   pull_request:
     branches:
+      - master
       - main
-  workflow_dispatch:  # Manual trigger option
+  workflow_dispatch:
+
+env:
+  PYTHON_VERSION: 3.12  # Specify your Python version
+  PLOOMBER_CLOUD_KEY: ${{ secrets.PLOOMBER_CLOUD_KEY }}  # Ensure you've added this as a GitHub secret
 
 jobs:
-  build-and-deploy:
+  build:
     runs-on: ubuntu-latest
 
     steps:
-      # Step 1: Checkout the code
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-      # Step 2: Set up Python
-      - name: Setup Python
-        uses: actions/setup-python@v4
+      - name: Setup Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v2
         with:
-          python-version: '3.12'
+          python-version: ${{ env.PYTHON_VERSION }}
 
-      # Step 3: Install dependencies
-      - name: Install dependencies
+      - name: Install Python Dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      # Step 4: Run the Streamlit app (if applicable)
-      - name: Run Streamlit App
-        run: |
-          streamlit run app.py  # Adjust as necessary for your entry point
+      - name: Ploomber Cloud Authentication
+        run: ploomber-cloud key ${{ secrets.PLOOMBER_CLOUD_KEY }}
 
-      # Additional steps for deployment
+      - name: Deploy Streamlit App to Ploomber Cloud
+        run: ploomber-cloud deploy
+
+      - name: Verify Deployment Status
+        run: ploomber-cloud status
