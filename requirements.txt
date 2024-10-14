@@ -3,5 +3,7 @@ pandas==2.2.3
 selenium==4.25.0
 streamlit==1.39.0
 webdriver-manager
-chromium
+chromium-browser
 chromedriver
+pytest
+
