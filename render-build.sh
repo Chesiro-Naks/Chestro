@@ -24,5 +24,4 @@ export PATH="${PATH}:/opt/render/project/.render/chrome/opt/google/chrome"
 pip install -r requirements.txt
 
 # Run Streamlit app on the correct port
-# Render automatically assigns the $PORT environment variable
-streamlit run app.py --server.port $PORT --server.address 0.0.0.0
+
