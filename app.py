@@ -43,7 +43,7 @@ def scrape_live_matches(driver):
     """Scrape live match details from the page."""
     match_details = []
     try:
-        WebDriverWait(driver, 120).until(
+        WebDriverWait(driver, 250).until(
             EC.presence_of_element_located((By.CLASS_NAME, "event__match--live"))
         )
         
