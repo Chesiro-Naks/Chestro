@@ -5,6 +5,6 @@ streamlit==1.39.0
 webdriver-manager
 chromium
 chromedriver
-streamlit
+
 
 
