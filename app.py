@@ -27,6 +27,19 @@ def initialize_driver():
         st.error(f"An error occurred while initializing the WebDriver: {str(e)}")
         return None
 
+def retry_on_failure(func, retries=3, delay=2, *args, **kwargs):
+    """Retry a function on failure."""
+    for attempt in range(1, retries + 1):
+        try:
+            return func(*args, **kwargs)
+        except Exception as e:
+            st.warning(f"Attempt {attempt}/{retries} failed: {str(e)}")
+            if attempt < retries:
+                time.sleep(delay)
+            else:
+                st.error("Max retries reached. Function failed.")
+                raise
+
 def click_live_button(driver):
     """Click the 'LIVE' button on the page."""
     try:
@@ -42,9 +55,6 @@ def click_live_button(driver):
 def scrape_live_matches(driver):
     """Scrape live match details from the page."""
     match_details = []
-    max_retries = 3  # Number of retries for each URL
-    wait_time = 5    # Wait time between retries
-    
     try:
         WebDriverWait(driver, 250).until(
             EC.presence_of_element_located((By.CLASS_NAME, "event__match--live"))
@@ -69,54 +79,47 @@ def scrape_live_matches(driver):
         
         for idx, full_url in enumerate(full_urls, start=1):
             st.write(f"Processing {idx}/{len(full_urls)}: {full_url}")
-            for attempt in range(max_retries):
-                try:
-                    driver.execute_script(f"window.open('{full_url}', '_blank');")
-                    driver.switch_to.window(driver.window_handles[-1])
+            try:
+                driver.execute_script(f"window.open('{full_url}', '_blank');")
+                driver.switch_to.window(driver.window_handles[-1])
+                
+                new_page_content = retry_on_failure(lambda: driver.page_source)
+                new_soup = BeautifulSoup(new_page_content, 'html.parser')
+
+                # Extract match details
+                match_info = extract_match_info(new_soup, full_url)
+                if match_info:
+                    match_details.append(match_info)
                     
-                    new_page_content = driver.page_source
-                    new_soup = BeautifulSoup(new_page_content, 'html.parser')
+                # Check for additional sub-links
+                sub_links = new_soup.find('section', class_='event event--summary').find_all('a', href=True)
+                for sub_link in sub_links:
+                    sub_link_url = sub_link['href']
+                    if "https://www.diretta.it#" not in sub_link_url:
+                        try:
+                            retry_on_failure(lambda: driver.execute_script(f"window.open('{sub_link_url}', '_blank');"))
+                            driver.switch_to.window(driver.window_handles[-1])
+                            time.sleep(2)  # Wait for the sub link page to load
+                            sub_page_content = retry_on_failure(lambda: driver.page_source)
+                            sub_soup = BeautifulSoup(sub_page_content, 'html.parser')
+                            
+                            sub_match_info = extract_match_info(sub_soup, sub_link_url)
+                            if sub_match_info:
+                                match_details.append(sub_match_info)
 
-                    # Extract match details
-                    match_info = extract_match_info(new_soup, full_url)
-                    if match_info:
-                        match_details.append(match_info)
-                        
-                    # Check for additional sub-links
-                    sub_links = new_soup.find('section', class_='event event--summary').find_all('a', href=True)
-                    for sub_link in sub_links:
-                        sub_link_url = sub_link['href']
-                        if "https://www.diretta.it#" not in sub_link_url:
-                            for sub_attempt in range(max_retries):
-                                try:
-                                    driver.execute_script(f"window.open('{sub_link_url}', '_blank');")
-                                    driver.switch_to.window(driver.window_handles[-1])
-                                    time.sleep(2)  # Wait for the sub link page to load
-                                    sub_page_content = driver.page_source
-                                    sub_soup = BeautifulSoup(sub_page_content, 'html.parser')
-                                    
-                                    sub_match_info = extract_match_info(sub_soup, sub_link_url)
-                                    if sub_match_info:
-                                        match_details.append(sub_match_info)
+                        except Exception as e:
+                            st.error(f"An error occurred while processing sub link {sub_link_url}: {str(e)}")
+                            st.text(traceback.format_exc())
+                        finally:
+                            driver.close()
+                            driver.switch_to.window(driver.window_handles[0])
 
-                                    driver.close()
-                                    driver.switch_to.window(driver.window_handles[0])
-                                    break  # Break if successful
-                                except Exception as e:
-                                    st.error(f"Attempt {sub_attempt + 1}/{max_retries} failed for sub link {sub_link_url}: {str(e)}")
-                                    time.sleep(wait_time)  # Wait before retrying
-                            else:
-                                st.error(f"Failed to process sub link {sub_link_url} after {max_retries} attempts.")
-                                    
-                    break  # Break if successful
-                except Exception as e:
-                    st.error(f"Attempt {attempt + 1}/{max_retries} failed for {full_url}: {str(e)}")
-                    time.sleep(wait_time)  # Wait before retrying
-            else:
-                st.error(f"Failed to process {full_url} after {max_retries} attempts.")
-            
-            driver.close()
-            driver.switch_to.window(driver.window_handles[0])
+            except Exception as e:
+                st.error(f"An error occurred while processing {full_url}: {str(e)}")
+                st.text(traceback.format_exc())
+            finally:
+                driver.close()
+                driver.switch_to.window(driver.window_handles[0])
         
         return match_details
     
