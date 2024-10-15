@@ -42,6 +42,8 @@ def click_live_button(driver):
 def scrape_live_matches(driver):
     """Scrape live match details from the page."""
     match_details = []
+    sub_links = []  # List to store sub-links
+
     try:
         WebDriverWait(driver, 250).until(
             EC.presence_of_element_located((By.CLASS_NAME, "event__match--live"))
@@ -64,11 +66,7 @@ def scrape_live_matches(driver):
             st.warning("No live match links found.")
             return match_details
         
-        # Print the extracted sublinks
-        st.write("Sublinks extracted:")
-        for idx, full_url in enumerate(full_urls, start=1):
-            st.write(f"{idx}. {full_url}")
-
+        # Print and extract sub-links first
         for idx, full_url in enumerate(full_urls, start=1):
             st.write(f"Processing {idx}/{len(full_urls)}: {full_url}")
             try:
@@ -82,34 +80,46 @@ def scrape_live_matches(driver):
                 match_info = extract_match_info(new_soup, full_url)
                 if match_info:
                     match_details.append(match_info)
-                    
-                # Check for additional sub-links and print them
-                st.write("Sublinks found for this match:")
-                sub_links = new_soup.find('section', class_='event event--summary').find_all('a', href=True)
-                for sub_link in sub_links:
+
+                # Check for additional sub-links
+                sub_links_found = new_soup.find('section', class_='event event--summary').find_all('a', href=True)
+                for sub_link in sub_links_found:
                     sub_link_url = sub_link['href']
                     if "https://www.diretta.it#" not in sub_link_url:
-                        st.write(f"Sublink: {sub_link_url}")
-                        driver.execute_script(f"window.open('{sub_link_url}', '_blank');")
-                        driver.switch_to.window(driver.window_handles[-1])
-                        time.sleep(2)  # Wait for the sub link page to load
-                        sub_page_content = driver.page_source
-                        sub_soup = BeautifulSoup(sub_page_content, 'html.parser')
-                        
-                        sub_match_info = extract_match_info(sub_soup, sub_link_url)
-                        if sub_match_info:
-                            match_details.append(sub_match_info)
+                        sub_links.append(sub_link_url)  # Store the sub-link
+                        st.write(f"Found sub-link: {sub_link_url}")  # Print sub-link
 
-                        driver.close()
-                        driver.switch_to.window(driver.window_handles[0])
+                driver.close()
+                driver.switch_to.window(driver.window_handles[0])
 
             except Exception as e:
                 st.error(f"An error occurred while processing {full_url}: {str(e)}")
                 st.text(traceback.format_exc())
-            finally:
                 driver.close()
                 driver.switch_to.window(driver.window_handles[0])
-        
+
+        # Now click on each sub-link
+        for sub_link in sub_links:
+            try:
+                driver.execute_script(f"window.open('{sub_link}', '_blank');")
+                driver.switch_to.window(driver.window_handles[-1])
+                time.sleep(2)  # Wait for the sub link page to load
+                sub_page_content = driver.page_source
+                sub_soup = BeautifulSoup(sub_page_content, 'html.parser')
+                
+                sub_match_info = extract_match_info(sub_soup, sub_link)
+                if sub_match_info:
+                    match_details.append(sub_match_info)
+
+                driver.close()
+                driver.switch_to.window(driver.window_handles[0])
+
+            except Exception as e:
+                st.error(f"An error occurred while processing sub-link {sub_link}: {str(e)}")
+                st.text(traceback.format_exc())
+                driver.close()
+                driver.switch_to.window(driver.window_handles[0])
+
         return match_details
     
     except Exception as e:
