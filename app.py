@@ -64,6 +64,11 @@ def scrape_live_matches(driver):
             st.warning("No live match links found.")
             return match_details
         
+        # Print the extracted sublinks
+        st.write("Sublinks extracted:")
+        for idx, full_url in enumerate(full_urls, start=1):
+            st.write(f"{idx}. {full_url}")
+
         for idx, full_url in enumerate(full_urls, start=1):
             st.write(f"Processing {idx}/{len(full_urls)}: {full_url}")
             try:
