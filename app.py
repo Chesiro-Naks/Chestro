@@ -27,19 +27,6 @@ def initialize_driver():
         st.error(f"An error occurred while initializing the WebDriver: {str(e)}")
         return None
 
-def retry_on_failure(func, retries=3, delay=2, *args, **kwargs):
-    """Retry a function on failure."""
-    for attempt in range(1, retries + 1):
-        try:
-            return func(*args, **kwargs)
-        except Exception as e:
-            st.warning(f"Attempt {attempt}/{retries} failed: {str(e)}")
-            if attempt < retries:
-                time.sleep(delay)
-            else:
-                st.error("Max retries reached. Function failed.")
-                raise
-
 def click_live_button(driver):
     """Click the 'LIVE' button on the page."""
     try:
@@ -83,7 +70,7 @@ def scrape_live_matches(driver):
                 driver.execute_script(f"window.open('{full_url}', '_blank');")
                 driver.switch_to.window(driver.window_handles[-1])
                 
-                new_page_content = retry_on_failure(lambda: driver.page_source)
+                new_page_content = driver.page_source
                 new_soup = BeautifulSoup(new_page_content, 'html.parser')
 
                 # Extract match details
@@ -91,28 +78,25 @@ def scrape_live_matches(driver):
                 if match_info:
                     match_details.append(match_info)
                     
-                # Check for additional sub-links
+                # Check for additional sub-links and print them
+                st.write("Sublinks found for this match:")
                 sub_links = new_soup.find('section', class_='event event--summary').find_all('a', href=True)
                 for sub_link in sub_links:
                     sub_link_url = sub_link['href']
                     if "https://www.diretta.it#" not in sub_link_url:
-                        try:
-                            retry_on_failure(lambda: driver.execute_script(f"window.open('{sub_link_url}', '_blank');"))
-                            driver.switch_to.window(driver.window_handles[-1])
-                            time.sleep(2)  # Wait for the sub link page to load
-                            sub_page_content = retry_on_failure(lambda: driver.page_source)
-                            sub_soup = BeautifulSoup(sub_page_content, 'html.parser')
-                            
-                            sub_match_info = extract_match_info(sub_soup, sub_link_url)
-                            if sub_match_info:
-                                match_details.append(sub_match_info)
+                        st.write(f"Sublink: {sub_link_url}")
+                        driver.execute_script(f"window.open('{sub_link_url}', '_blank');")
+                        driver.switch_to.window(driver.window_handles[-1])
+                        time.sleep(2)  # Wait for the sub link page to load
+                        sub_page_content = driver.page_source
+                        sub_soup = BeautifulSoup(sub_page_content, 'html.parser')
+                        
+                        sub_match_info = extract_match_info(sub_soup, sub_link_url)
+                        if sub_match_info:
+                            match_details.append(sub_match_info)
 
-                        except Exception as e:
-                            st.error(f"An error occurred while processing sub link {sub_link_url}: {str(e)}")
-                            st.text(traceback.format_exc())
-                        finally:
-                            driver.close()
-                            driver.switch_to.window(driver.window_handles[0])
+                        driver.close()
+                        driver.switch_to.window(driver.window_handles[0])
 
             except Exception as e:
                 st.error(f"An error occurred while processing {full_url}: {str(e)}")
