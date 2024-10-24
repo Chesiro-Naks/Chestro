@@ -31,7 +31,7 @@ def click_live_button(driver):
     """Click the 'LIVE' button on the page."""
     try:
         live_button = WebDriverWait(driver, 30).until(
-            EC.element_to_be_clickable((By.XPATH, "//div[contains(text(),'LIVE')]"))
+            EC.element_to_be_clickable((By.XPATH, "//div[contains(@class, 'filters__tab')]//div[contains(text(),'LIVE')]"))
         )
         ActionChains(driver).move_to_element(live_button).click().perform()
         return True
@@ -40,33 +40,28 @@ def click_live_button(driver):
         return False
 
 def scrape_live_matches(driver):
-    """Scrape live match details from the page."""
+    """Scrape live match details from the webpage."""
     match_details = []
-    sub_links = []  # List to store sub-links
 
     try:
-        WebDriverWait(driver, 250).until(
-            EC.presence_of_element_located((By.CLASS_NAME, "event__match--live"))
-        )
-        
         html_content = driver.page_source
         soup = BeautifulSoup(html_content, 'html.parser')
-        
-        links = soup.find_all('a', class_='_link_u85u_4')
+
+        # Gather all event titles
+        event_titles = soup.find_all('div', class_='event__title')  # Use the correct class name
         full_urls = []
-        
-        for link in links:
-            if 'href' in link.attrs:
+        for title in event_titles:
+            link = title.find('a', class_='wcl-linkBase_CdaEq')
+            if link and 'href' in link.attrs:
                 link_href = link['href']
                 full_url = f"https://www.diretta.it{link_href}"
-                if full_url != "https://www.diretta.it#":
-                    full_urls.append(full_url)
-        
+                full_urls.append(full_url)        
+
         if not full_urls:
             st.warning("No live match links found.")
             return match_details
-        
-        # Print and extract sub-links first
+
+        # Process each full URL (main links)
         for idx, full_url in enumerate(full_urls, start=1):
             st.write(f"Processing {idx}/{len(full_urls)}: {full_url}")
             try:
@@ -76,19 +71,37 @@ def scrape_live_matches(driver):
                 new_page_content = driver.page_source
                 new_soup = BeautifulSoup(new_page_content, 'html.parser')
 
-                # Extract match details
+                # Extract match details from the full link
                 match_info = extract_match_info(new_soup, full_url)
                 if match_info:
                     match_details.append(match_info)
 
-                # Check for additional sub-links
-                sub_links_found = new_soup.find('section', class_='event event--summary').find_all('a', href=True)
-                for sub_link in sub_links_found:
-                    sub_link_url = sub_link['href']
-                    if "https://www.diretta.it#" not in sub_link_url:
-                        sub_links.append(sub_link_url)  # Store the sub-link
-                        st.write(f"Found sub-link: {sub_link_url}")  # Print sub-link
+                # Process sub-links
+                sub_links = extract_sub_links(new_soup)
+                for sub_link in sub_links:
+                    try:
+                        st.write(f"Processing sub-link: {sub_link}")
+                        driver.execute_script(f"window.open('{sub_link}', '_blank');")
+                        driver.switch_to.window(driver.window_handles[-1])
+                        time.sleep(2)  # Wait for the sub-link page to load
 
+                        sub_page_content = driver.page_source
+                        sub_soup = BeautifulSoup(sub_page_content, 'html.parser')
+                        
+                        sub_match_info = extract_match_info(sub_soup, sub_link)
+                        if sub_match_info:
+                            match_details.append(sub_match_info)
+
+                        driver.close()  # Close the sub-link tab
+                        driver.switch_to.window(driver.window_handles[0])
+
+                    except Exception as e:
+                        st.error(f"An error occurred while processing sub-link {sub_link}: {str(e)}")
+                        st.text(traceback.format_exc())
+                        driver.close()
+                        driver.switch_to.window(driver.window_handles[0])
+
+                # Close full link tab after sub-links are processed
                 driver.close()
                 driver.switch_to.window(driver.window_handles[0])
 
@@ -98,34 +111,26 @@ def scrape_live_matches(driver):
                 driver.close()
                 driver.switch_to.window(driver.window_handles[0])
 
-        # Now click on each sub-link
-        for sub_link in sub_links:
-            try:
-                driver.execute_script(f"window.open('{sub_link}', '_blank');")
-                driver.switch_to.window(driver.window_handles[-1])
-                time.sleep(2)  # Wait for the sub link page to load
-                sub_page_content = driver.page_source
-                sub_soup = BeautifulSoup(sub_page_content, 'html.parser')
-                
-                sub_match_info = extract_match_info(sub_soup, sub_link)
-                if sub_match_info:
-                    match_details.append(sub_match_info)
-
-                driver.close()
-                driver.switch_to.window(driver.window_handles[0])
-
-            except Exception as e:
-                st.error(f"An error occurred while processing sub-link {sub_link}: {str(e)}")
-                st.text(traceback.format_exc())
-                driver.close()
-                driver.switch_to.window(driver.window_handles[0])
-
         return match_details
-    
+
     except Exception as e:
         st.error(f"An error occurred while scraping live matches: {str(e)}")
         st.text(traceback.format_exc())
         return match_details
+
+def extract_sub_links(soup):
+    """Extract sub-links from the soup object."""
+    sub_links = []
+    try:
+        sub_links_found = soup.find('section', class_='event event--summary').find_all('a', href=True)
+        for sub_link in sub_links_found:
+            sub_link_url = sub_link['href']
+            if "https://www.diretta.it#" not in sub_link_url:
+                sub_links.append(sub_link_url)  # Store the sub-link
+        return sub_links
+    except Exception as e:
+        st.error(f"An error occurred while extracting sub-links: {str(e)}")
+        return sub_links
 
 def extract_match_info(soup, match_link):
     """Extract match information from the given soup object."""
@@ -198,43 +203,22 @@ def main():
         driver = initialize_driver()
         
         if not driver:
-            st.error("WebDriver initialization failed.")
+            st.error("WebDriver could not be initialized.")
             return
+
+        driver.get(url)  # Navigate to the input URL
         
-        try:
-            driver.get(url)
-            success = click_live_button(driver)
-            
-            if not success:
-                st.error("Failed to click the 'LIVE' button.")
-                return
-            
+        if click_live_button(driver):
             match_details = scrape_live_matches(driver)
-            
-            # Filter out None values from match details
-            match_details = [detail for detail in match_details if detail is not None]
-            
             if match_details:
-                df = pd.DataFrame(match_details)
-                st.success("Live match details scraped successfully!")
-                st.dataframe(df)
-
-                csv = df.to_csv(index=False).encode('utf-8')
-                st.download_button(
-                    label="Download CSV",
-                    data=csv,
-                    file_name='live_matches.csv',
-                    mime='text/csv',
-                )
+                st.success("Scraping completed!")
+                st.write(pd.DataFrame(match_details))  # Display the match details as a DataFrame
             else:
-                st.info("No live match details found.")
+                st.warning("No match details found.")
+        else:
+            st.error("Failed to click the 'LIVE' button.")
         
-        except Exception as e:
-            st.error(f"An error occurred during the scraping process: {str(e)}")
-            st.text(traceback.format_exc())
-        
-        finally:
-            driver.quit()
+        driver.quit()  # Close the driver after finishing the process
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()
