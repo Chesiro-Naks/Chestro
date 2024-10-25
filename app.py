@@ -94,22 +94,26 @@ def scrape_live_matches(driver):
 
                         driver.close()  # Close the sub-link tab
                         driver.switch_to.window(driver.window_handles[0])
+                        time.sleep(1)  # Short delay to reduce CPU usage
 
                     except Exception as e:
                         st.error(f"An error occurred while processing sub-link {sub_link}: {str(e)}")
                         st.text(traceback.format_exc())
                         driver.close()
                         driver.switch_to.window(driver.window_handles[0])
+                        time.sleep(1)  # Short delay to reduce CPU usage
 
                 # Close full link tab after sub-links are processed
                 driver.close()
                 driver.switch_to.window(driver.window_handles[0])
+                time.sleep(1)  # Short delay to reduce CPU usage
 
             except Exception as e:
                 st.error(f"An error occurred while processing {full_url}: {str(e)}")
                 st.text(traceback.format_exc())
                 driver.close()
                 driver.switch_to.window(driver.window_handles[0])
+                time.sleep(1)  # Short delay to reduce CPU usage
 
         return match_details
 
