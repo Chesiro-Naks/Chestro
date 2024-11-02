@@ -1,10 +1,9 @@
 beautifulsoup4==4.12.3
 pandas==2.2.3
-selenium==4.25.0
+python-telegram-bot==21.6
+schedule==1.2.2
+selenium==4.26.1
 streamlit==1.39.0
 webdriver-manager
 chromium
 chromedriver
-
-
-
